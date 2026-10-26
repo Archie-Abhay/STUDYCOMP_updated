@@ -1,0 +1,4 @@
+/upload    /upload.html    200
+/study     /study.html     200
+/quiz      /quiz.html      200
+/api/*     /.netlify/functions/api/:splat    200

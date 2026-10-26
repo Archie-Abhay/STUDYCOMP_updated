@@ -39,6 +39,8 @@ let activeRawNotes = SAMPLE_TOPICS.cellular_respiration.content;
 let activeIndexedNotes = engine.indexNotes(activeRawNotes);
 let activeQuiz = engine.generatePracticeQuiz(activeIndexedNotes, activeTopicId, 5);
 
+const apiRouter = express.Router();
+
 // Demo checklist state tracking
 let demoChecklistState = {
   step1_notes_loaded: true,
@@ -48,7 +50,7 @@ let demoChecklistState = {
 };
 
 // 1. Get system & engine info
-app.get("/api/status", (req, res) => {
+apiRouter.get("/status", (req, res) => {
   res.json({
     status: "online",
     model: engine.modelName,
@@ -62,7 +64,7 @@ app.get("/api/status", (req, res) => {
 });
 
 // Active notes for study and quiz pages
-app.get("/api/active-notes", (req, res) => {
+apiRouter.get("/active-notes", (req, res) => {
   const currentTopic = SAMPLE_TOPICS[activeTopicId] || {
     id: "custom",
     title: "Custom Uploaded Notes",
@@ -87,7 +89,7 @@ app.get("/api/active-notes", (req, res) => {
 });
 
 // 2. Get available preset topics
-app.get("/api/presets", (req, res) => {
+apiRouter.get("/presets", (req, res) => {
   const presets = Object.values(SAMPLE_TOPICS).map(t => ({
     id: t.id,
     title: t.title,
@@ -100,7 +102,7 @@ app.get("/api/presets", (req, res) => {
 });
 
 // 3. Load a preset topic
-app.post("/api/load-topic", (req, res) => {
+apiRouter.post("/load-topic", (req, res) => {
   const { topicId, quizCount } = req.body;
   if (!SAMPLE_TOPICS[topicId]) {
     return res.status(404).json({ error: "Preset topic not found" });
@@ -126,7 +128,7 @@ app.post("/api/load-topic", (req, res) => {
 });
 
 // 4. Upload or paste custom notes
-app.post("/api/upload-notes", (req, res) => {
+apiRouter.post("/upload-notes", (req, res) => {
   const { text, title, quizCount } = req.body;
   const notesText = typeof text === "string" ? text : (text ? String(text) : "");
   if (!notesText || notesText.trim().length < 20) {
@@ -157,7 +159,7 @@ app.post("/api/upload-notes", (req, res) => {
 });
 
 // 5. Ask question strictly grounded with Gemma 4
-app.post("/api/ask", (req, res) => {
+apiRouter.post("/ask", (req, res) => {
   const { question } = req.body;
   if (!question || question.trim().length === 0) {
     return res.status(400).json({ error: "Question cannot be empty." });
@@ -179,7 +181,7 @@ app.post("/api/ask", (req, res) => {
 });
 
 // 6. Get practice quiz
-app.get("/api/quiz", (req, res) => {
+apiRouter.get("/quiz", (req, res) => {
   // Strip correct answer index from public quiz payload to keep it an authentic test
   const sanitizedQuestions = activeQuiz.map(q => ({
     id: q.id,
@@ -199,7 +201,7 @@ app.get("/api/quiz", (req, res) => {
 });
 
 // 6b. Generate practice quiz with custom limit (5 to 15 questions) and difficulty
-app.post("/api/quiz/generate", (req, res) => {
+apiRouter.post("/quiz/generate", (req, res) => {
   let { count, difficulty } = req.body;
   count = parseInt(count, 10);
   if (isNaN(count) || count < 5) count = 5;
@@ -228,7 +230,7 @@ app.post("/api/quiz/generate", (req, res) => {
 });
 
 // 7. Evaluate practice quiz answer with detailed pedagogy, hints, and mistake diagnostics
-app.post("/api/quiz/evaluate", (req, res) => {
+apiRouter.post("/quiz/evaluate", (req, res) => {
   const { questionId, selectedIndex } = req.body;
   const question = activeQuiz.find(q => q.id === questionId);
   if (!question) {
@@ -252,7 +254,7 @@ app.post("/api/quiz/evaluate", (req, res) => {
 });
 
 // 8. Get Live Demo Checklist status & presets
-app.get("/api/demo-checklist", (req, res) => {
+apiRouter.get("/demo-checklist", (req, res) => {
   const currentDemo = SAMPLE_TOPICS[activeTopicId] || SAMPLE_TOPICS.cellular_respiration;
   res.json({
     checklistState: demoChecklistState,
@@ -288,14 +290,21 @@ app.get("/api/demo-checklist", (req, res) => {
   });
 });
 
+app.use("/api", apiRouter);
+app.use("/.netlify/functions/api", apiRouter);
+app.use("/.netlify/functions/api/api", apiRouter);
+
 // Start server
-const server = app.listen(PORT, () => {
-  console.log(`=======================================================`);
-  console.log(`🚀 Gemma 4 Grounded Study Companion server online!`);
-  console.log(`📍 Web App URL: http://localhost:${PORT}`);
-  console.log(`📚 Active Topic: ${SAMPLE_TOPICS[activeTopicId].title}`);
-  console.log(`🎯 Live Demo Checklist ready with 1-click execution`);
-  console.log(`=======================================================`);
-});
+let server = null;
+if (!process.env.NETLIFY && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  server = app.listen(PORT, () => {
+    console.log(`=======================================================`);
+    console.log(`🚀 Gemma 4 Grounded Study Companion server online!`);
+    console.log(`📍 Web App URL: http://localhost:${PORT}`);
+    console.log(`📚 Active Topic: ${SAMPLE_TOPICS[activeTopicId]?.title || 'Cellular Respiration'}`);
+    console.log(`🎯 Live Demo Checklist ready with 1-click execution`);
+    console.log(`=======================================================`);
+  });
+}
 
 module.exports = { app, server, engine };

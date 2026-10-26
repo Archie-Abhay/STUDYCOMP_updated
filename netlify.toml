@@ -1,0 +1,32 @@
+[build]
+  command = "npm install"
+  publish = "public"
+  functions = "netlify/functions"
+
+# Multi-page HTML route rewrites
+[[redirects]]
+  from = "/upload"
+  to = "/upload.html"
+  status = 200
+
+[[redirects]]
+  from = "/study"
+  to = "/study.html"
+  status = 200
+
+[[redirects]]
+  from = "/quiz"
+  to = "/quiz.html"
+  status = 200
+
+# Backend API serverless rewrite
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+# Fallback for home
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
