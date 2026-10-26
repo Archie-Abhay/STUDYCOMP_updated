@@ -1,0 +1,301 @@
+// Express Server for PS 01: Study Companion from Real Notes
+// Centered around Gemma 4 Grounding Engine
+
+const express = require("express");
+const cors = require("cors");
+const path = require("path");
+const { SAMPLE_TOPICS } = require("./sampleNotes");
+const { GemmaGroundingEngine } = require("./gemmaEngine");
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(express.json({ limit: "10mb" }));
+app.use(express.static(path.join(__dirname, "public")));
+
+// Explicit Multi-Page Routes
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+app.get("/upload", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "upload.html"));
+});
+
+app.get("/study", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "study.html"));
+});
+
+app.get("/quiz", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "quiz.html"));
+});
+
+const engine = new GemmaGroundingEngine();
+
+// In-memory active session state
+let activeTopicId = "cellular_respiration";
+let activeRawNotes = SAMPLE_TOPICS.cellular_respiration.content;
+let activeIndexedNotes = engine.indexNotes(activeRawNotes);
+let activeQuiz = engine.generatePracticeQuiz(activeIndexedNotes, activeTopicId, 5);
+
+// Demo checklist state tracking
+let demoChecklistState = {
+  step1_notes_loaded: true,
+  step2_supported_qa_run: false,
+  step3_quiz_incorrect_run: false,
+  step4_unsupported_qa_refused: false
+};
+
+// 1. Get system & engine info
+app.get("/api/status", (req, res) => {
+  res.json({
+    status: "online",
+    model: engine.modelName,
+    version: engine.version,
+    activeTopicId,
+    totalParagraphs: activeIndexedNotes.totalParagraphs,
+    totalSentences: activeIndexedNotes.totalSentences,
+    learnerProfile: engine.learnerProfile || { totalAttempted: 0, totalCorrect: 0, streak: 0, currentDifficulty: "Analytical", accuracy: 0 },
+    demoChecklistState
+  });
+});
+
+// Active notes for study and quiz pages
+app.get("/api/active-notes", (req, res) => {
+  const currentTopic = SAMPLE_TOPICS[activeTopicId] || {
+    id: "custom",
+    title: "Custom Uploaded Notes",
+    subject: "User Academic Material",
+    content: activeRawNotes
+  };
+
+  res.json({
+    activeTopicId,
+    title: currentTopic.title,
+    subject: currentTopic.subject,
+    rawNotes: activeRawNotes,
+    indexedSummary: {
+      totalParagraphs: activeIndexedNotes.totalParagraphs,
+      totalSentences: activeIndexedNotes.totalSentences,
+      sections: activeIndexedNotes.sections.map(s => s.title)
+    },
+    sections: activeIndexedNotes.sections,
+    demoQuestions: currentTopic.demoQuestions || null,
+    learnerProfile: engine.learnerProfile || { totalAttempted: 0, totalCorrect: 0, streak: 0, currentDifficulty: "Analytical", accuracy: 0 }
+  });
+});
+
+// 2. Get available preset topics
+app.get("/api/presets", (req, res) => {
+  const presets = Object.values(SAMPLE_TOPICS).map(t => ({
+    id: t.id,
+    title: t.title,
+    subject: t.subject,
+    pages: t.pages,
+    summary: t.summary,
+    demoQuestions: t.demoQuestions
+  }));
+  res.json({ presets, currentTopicId: activeTopicId });
+});
+
+// 3. Load a preset topic
+app.post("/api/load-topic", (req, res) => {
+  const { topicId, quizCount } = req.body;
+  if (!SAMPLE_TOPICS[topicId]) {
+    return res.status(404).json({ error: "Preset topic not found" });
+  }
+
+  activeTopicId = topicId;
+  activeRawNotes = SAMPLE_TOPICS[topicId].content;
+  activeIndexedNotes = engine.indexNotes(activeRawNotes);
+  activeQuiz = engine.generatePracticeQuiz(activeIndexedNotes, activeTopicId, quizCount || 5);
+  demoChecklistState.step1_notes_loaded = true;
+
+  res.json({
+    success: true,
+    topic: SAMPLE_TOPICS[topicId],
+    indexedSummary: {
+      totalParagraphs: activeIndexedNotes.totalParagraphs,
+      totalSentences: activeIndexedNotes.totalSentences,
+      sections: activeIndexedNotes.sections.map(s => s.title)
+    },
+    demoQuestions: SAMPLE_TOPICS[topicId].demoQuestions,
+    demoChecklistState
+  });
+});
+
+// 4. Upload or paste custom notes
+app.post("/api/upload-notes", (req, res) => {
+  const { text, title, quizCount } = req.body;
+  const notesText = typeof text === "string" ? text : (text ? String(text) : "");
+  if (!notesText || notesText.trim().length < 20) {
+    return res.status(400).json({ error: "Please provide notes with at least 20 characters." });
+  }
+
+  activeTopicId = "custom";
+  activeRawNotes = notesText;
+  activeIndexedNotes = engine.indexNotes(activeRawNotes);
+  activeQuiz = engine.generatePracticeQuiz(activeIndexedNotes, "custom", quizCount || 5);
+  demoChecklistState.step1_notes_loaded = true;
+
+  res.json({
+    success: true,
+    topic: {
+      id: "custom",
+      title: title || "Custom Uploaded Notes",
+      subject: "User Academic Material",
+      content: text
+    },
+    indexedSummary: {
+      totalParagraphs: activeIndexedNotes.totalParagraphs,
+      totalSentences: activeIndexedNotes.totalSentences,
+      sections: activeIndexedNotes.sections.map(s => s.title)
+    },
+    demoChecklistState
+  });
+});
+
+// 5. Ask question strictly grounded with Gemma 4
+app.post("/api/ask", (req, res) => {
+  const { question } = req.body;
+  if (!question || question.trim().length === 0) {
+    return res.status(400).json({ error: "Question cannot be empty." });
+  }
+
+  const result = engine.answerQuestion(activeIndexedNotes, question);
+
+  // Update live demo checklist flags
+  if (!result.isRefusal && result.status === "SUPPORTED_GROUNDED") {
+    demoChecklistState.step2_supported_qa_run = true;
+  } else if (result.isRefusal) {
+    demoChecklistState.step4_unsupported_qa_refused = true;
+  }
+
+  res.json({
+    ...result,
+    demoChecklistState
+  });
+});
+
+// 6. Get practice quiz
+app.get("/api/quiz", (req, res) => {
+  // Strip correct answer index from public quiz payload to keep it an authentic test
+  const sanitizedQuestions = activeQuiz.map(q => ({
+    id: q.id,
+    concept: q.concept,
+    difficulty: q.difficulty,
+    question: q.question,
+    options: q.options,
+    hintLevel1: q.hintLevel1 || q.hint,
+    hintLevel2: q.hintLevel2
+  }));
+
+  res.json({
+    totalQuestions: activeQuiz.length,
+    questions: sanitizedQuestions,
+    topicId: activeTopicId
+  });
+});
+
+// 6b. Generate practice quiz with custom limit (5 to 15 questions) and difficulty
+app.post("/api/quiz/generate", (req, res) => {
+  let { count, difficulty } = req.body;
+  count = parseInt(count, 10);
+  if (isNaN(count) || count < 5) count = 5;
+  if (count > 15) count = 15;
+
+  activeQuiz = engine.generatePracticeQuiz(activeIndexedNotes, activeTopicId, count, difficulty);
+
+  const sanitizedQuestions = activeQuiz.map(q => ({
+    id: q.id,
+    concept: q.concept,
+    difficulty: q.difficulty,
+    question: q.question,
+    options: q.options,
+    hintLevel1: q.hintLevel1 || q.hint,
+    hintLevel2: q.hintLevel2
+  }));
+
+  res.json({
+    success: true,
+    totalQuestions: activeQuiz.length,
+    requestedCount: count,
+    difficulty: difficulty || "Adaptive",
+    questions: sanitizedQuestions,
+    topicId: activeTopicId
+  });
+});
+
+// 7. Evaluate practice quiz answer with detailed pedagogy, hints, and mistake diagnostics
+app.post("/api/quiz/evaluate", (req, res) => {
+  const { questionId, selectedIndex } = req.body;
+  const question = activeQuiz.find(q => q.id === questionId);
+  if (!question) {
+    return res.status(404).json({ error: "Question not found." });
+  }
+
+  if (selectedIndex === undefined || selectedIndex === null) {
+    return res.status(400).json({ error: "Please select an answer." });
+  }
+
+  const evaluation = engine.evaluateQuizAnswer(question, Number(selectedIndex));
+
+  if (!evaluation.isCorrect) {
+    demoChecklistState.step3_quiz_incorrect_run = true;
+  }
+
+  res.json({
+    ...evaluation,
+    demoChecklistState
+  });
+});
+
+// 8. Get Live Demo Checklist status & presets
+app.get("/api/demo-checklist", (req, res) => {
+  const currentDemo = SAMPLE_TOPICS[activeTopicId] || SAMPLE_TOPICS.cellular_respiration;
+  res.json({
+    checklistState: demoChecklistState,
+    items: [
+      {
+        id: "step1",
+        title: "1. Load sample notes on one academic topic",
+        status: demoChecklistState.step1_notes_loaded ? "PASSED" : "PENDING",
+        description: `Notes loaded on: "${SAMPLE_TOPICS[activeTopicId]?.title || 'Custom Notes'}" (${activeIndexedNotes.totalSentences} verified sentences across ${activeIndexedNotes.totalParagraphs} paragraphs).`
+      },
+      {
+        id: "step2",
+        title: "2. Ask supported question & inspect evidence",
+        status: demoChecklistState.step2_supported_qa_run ? "PASSED" : "READY",
+        suggestedQuery: currentDemo.demoQuestions?.supported?.question,
+        expectedEvidence: currentDemo.demoQuestions?.supported?.expectedEvidenceFragment,
+        description: "Ask a grounded question; verify the verbatim source quote, paragraph location, and confidence badge."
+      },
+      {
+        id: "step3",
+        title: "3. Intentionally answer quiz question incorrectly",
+        status: demoChecklistState.step3_quiz_incorrect_run ? "PASSED" : "READY",
+        description: "Select an incorrect option on the practice quiz to trigger Gemma 4's misconception analysis, progressive hints, and exact evidence citation."
+      },
+      {
+        id: "step4",
+        title: "4. Ask unsupported question to prove zero hallucination",
+        status: demoChecklistState.step4_unsupported_qa_refused ? "PASSED" : "READY",
+        suggestedQuery: currentDemo.demoQuestions?.unsupported?.question,
+        description: "Ask a query outside the notes; verify that Gemma 4 explicitly flags and refuses to answer without fabricating external facts."
+      }
+    ]
+  });
+});
+
+// Start server
+const server = app.listen(PORT, () => {
+  console.log(`=======================================================`);
+  console.log(`🚀 Gemma 4 Grounded Study Companion server online!`);
+  console.log(`📍 Web App URL: http://localhost:${PORT}`);
+  console.log(`📚 Active Topic: ${SAMPLE_TOPICS[activeTopicId].title}`);
+  console.log(`🎯 Live Demo Checklist ready with 1-click execution`);
+  console.log(`=======================================================`);
+});
+
+module.exports = { app, server, engine };

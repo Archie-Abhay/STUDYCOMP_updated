@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Practice Quiz — Test your knowledge with 5 to 15 questions directly from your notes.">
+  <title>Study Companion — Practice Quiz</title>
+
+  <!-- High-legibility geometric sans-serif: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="page-body">
+
+  <!-- ======================================================================
+       1. Application Header
+       ====================================================================== -->
+  <header class="app-header">
+    <div class="header-left">
+      <a href="/" class="brand-link" title="Return to Home">
+        <div class="brand">
+          <div class="brand-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          </div>
+          <div class="brand-text-group">
+            <span class="brand-title">Study Companion <span class="brand-sep">/</span> <span class="brand-sub">Real Notes</span></span>
+          </div>
+        </div>
+      </a>
+
+      <!-- Active Topic Pill -->
+      <div class="active-topic-badge" title="Material currently generating questions">
+        <span class="topic-dot"></span>
+        <span class="topic-name" id="quizTopicTitle">Loading active topic…</span>
+      </div>
+
+      <div class="engine-status" title="Quiz ready">
+        <span class="status-indicator-dot"></span>
+        <span class="status-text">Quiz Ready</span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <a href="/study" class="btn-secondary" title="Return to study questions">
+        <svg class="btn-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        <span>← Back to Questions</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- ======================================================================
+       2. Sequential Learning Flow Stepper (Step 3 is Active)
+       ====================================================================== -->
+  <nav class="learning-flow-stepper" aria-label="Sequential Learning Steps">
+    <a href="/upload" class="flow-step-link">
+      <div class="flow-step completed" id="flowStep1" title="Step 1: Notes uploaded">
+        <span class="flow-num">✓</span>
+        <span class="flow-title">1. Upload Notes</span>
+      </div>
+    </a>
+    <span class="flow-divider" aria-hidden="true">→</span>
+
+    <a href="/study" class="flow-step-link">
+      <div class="flow-step completed" id="flowStep2" title="Step 2: Questions and evidence">
+        <span class="flow-num">✓</span>
+        <span class="flow-title">2. Ask Questions & Evidence</span>
+      </div>
+    </a>
+    <span class="flow-divider" aria-hidden="true">→</span>
+
+    <div class="flow-step active" id="flowStep3" title="Step 3: Practice Quiz (5 to 15 questions limit)">
+      <span class="flow-num">3</span>
+      <span class="flow-title">Practice Quiz (5–15 Qs)</span>
+    </div>
+  </nav>
+
+  <!-- ======================================================================
+       3. Main Quiz Studio Container
+       ====================================================================== -->
+  <main class="quiz-studio-container">
+
+    <!-- PANEL 1: Quiz Configuration & Generator (Min 5, Max 15) -->
+    <section class="quiz-config-card" id="quizSetupPanel" aria-label="Configure Practice Quiz">
+      <div class="config-header">
+        <div class="config-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </div>
+        <div>
+          <h1 class="config-title">Practice Quiz from Notes</h1>
+          <p class="config-desc">
+            Choose how many practice questions you want to generate (between <strong>5 and 15 questions</strong>) based on your notes.
+          </p>
+        </div>
+      </div>
+
+      <!-- Question Limit Selector (5 to 15) -->
+      <div class="config-section">
+        <div class="config-label-row">
+          <label for="quizCountSlider" class="config-label">Question Count (Min 5, Max 15):</label>
+          <span class="count-display-badge" id="quizCountDisplay">5 Questions</span>
+        </div>
+
+        <div class="slider-row">
+          <span class="limit-bound-marker">5 (Min)</span>
+          <input type="range" id="quizCountSlider" class="quiz-range-slider" min="5" max="15" step="1" value="5">
+          <span class="limit-bound-marker">15 (Max)</span>
+          <input type="number" id="quizCountInput" class="quiz-number-input" min="5" max="15" value="5" aria-label="Exact question count">
+        </div>
+
+        <!-- Quick Pill Selectors -->
+        <div class="count-pills-row" aria-label="Quick question count presets">
+          <span class="pills-label">Quick Select:</span>
+          <button type="button" class="count-pill active-pill" data-count="5">5 Questions</button>
+          <button type="button" class="count-pill" data-count="8">8 Questions</button>
+          <button type="button" class="count-pill" data-count="10">10 Questions</button>
+          <button type="button" class="count-pill" data-count="12">12 Questions</button>
+          <button type="button" class="count-pill" data-count="15">15 Questions (Max)</button>
+        </div>
+      </div>
+
+      <!-- Difficulty Mode -->
+      <div class="config-section">
+        <label for="quizDifficultySelect" class="config-label">Difficulty Level:</label>
+        <select id="quizDifficultySelect" class="config-select">
+          <option value="Adaptive">Adaptive (Adjusts as you answer)</option>
+          <option value="Foundational">Foundational (Core terms & definitions)</option>
+          <option value="Analytical">Analytical (Mechanisms & concepts)</option>
+          <option value="Rigorous">Advanced (Complex questions)</option>
+        </select>
+      </div>
+
+      <div class="config-action-row">
+        <button type="button" class="btn-primary btn-large btn-full" id="btnGenerateQuiz">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <span>Generate Practice Quiz</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- PANEL 2: Active Question Test Taker -->
+    <section class="quiz-active-card" id="quizActivePanel" style="display:none;" aria-label="Active Quiz Session">
+      <div class="active-quiz-header">
+        <div class="progress-info-group">
+          <span class="progress-count-text" id="quizProgressText">Question 1 of 5</span>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="quizProgressBar" style="width: 20%;"></div>
+          </div>
+        </div>
+
+        <div class="learner-profile-bar">
+          <div class="profile-stat-item">
+            <span class="profile-label">Rigor:</span>
+            <span class="profile-val diff-tag" id="profileDiffBadge">Analytical</span>
+          </div>
+          <div class="profile-stat-item">
+            <span class="profile-label">Accuracy:</span>
+            <span class="profile-val" id="profileAccuracy">0%</span>
+          </div>
+          <div class="profile-stat-item">
+            <span class="profile-label">Streak:</span>
+            <span class="profile-val" id="profileStreak">0 in a row</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Question Card -->
+      <div class="question-body-card">
+        <div class="q-meta-row">
+          <span class="q-concept-badge" id="qConcept">Terminal Electron Acceptor</span>
+          <span class="q-difficulty-badge" id="qDifficulty">Analytical</span>
+        </div>
+
+        <h2 class="q-text" id="qText">Question text loading…</h2>
+
+        <!-- Options Container -->
+        <div class="q-options-container" id="qOptionsContainer">
+          <!-- Populated dynamically with option buttons -->
+        </div>
+
+        <!-- Progressive Hints Accordion -->
+        <div class="hints-accordion">
+          <div class="hints-btn-row">
+            <span class="hints-intro-label">Progressive Hints:</span>
+            <button type="button" class="btn-ghost btn-xs btn-hint-toggle" id="btnHint1">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <span>Hint 1: Conceptual Clue</span>
+            </button>
+            <button type="button" class="btn-ghost btn-xs btn-hint-toggle" id="btnHint2">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+              <span>Hint 2: Note Location</span>
+            </button>
+          </div>
+
+          <div class="hint-box" id="hint1Box" style="display:none;">
+            <div class="hint-header">Conceptual Clue:</div>
+            <p class="hint-text" id="hint1Text"></p>
+          </div>
+
+          <div class="hint-box" id="hint2Box" style="display:none;">
+            <div class="hint-header">Lecture Note Location:</div>
+            <p class="hint-text" id="hint2Text"></p>
+          </div>
+        </div>
+
+        <!-- Question Actions -->
+        <div class="q-actions-row">
+          <button type="button" class="btn-primary" id="btnSubmitAnswer" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Submit Answer</span>
+          </button>
+          <button type="button" class="btn-primary" id="btnNextQuestion" style="display:none;">
+            <span>Next Question →</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Real-time Pedagogical Diagnostic Feedback Card -->
+      <div class="quiz-feedback-card" id="feedbackContainer" style="display:none;">
+        <div class="feedback-header">
+          <span class="feedback-badge" id="feedbackBadge">CORRECT</span>
+          <h3 class="feedback-headline" id="feedbackHeadline">Response verified against notes.</h3>
+        </div>
+        <div class="feedback-body" id="feedbackBody"></div>
+        <div class="feedback-evidence-box">
+          <div class="feedback-ev-label">Source Evidence from Notes:</div>
+          <blockquote class="feedback-blockquote" id="feedbackEvidenceQuote"></blockquote>
+          <div class="feedback-ev-meta" id="feedbackEvidenceMeta"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 3: Quiz Scorecard Summary -->
+    <section class="quiz-summary-card" id="quizSummaryPanel" style="display:none;" aria-label="Quiz Results Summary">
+      <div class="summary-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      </div>
+      <h2 class="summary-title">Practice Quiz Completed</h2>
+      <div class="summary-score-large" id="scorePercentText">80% Accuracy</div>
+      <div class="summary-score-sub" id="scoreFinalText">4 / 5 Correct</div>
+
+      <p class="summary-breakdown" id="scoreBreakdownText">
+        Quiz completed.
+      </p>
+
+      <div class="summary-actions-row">
+        <button type="button" class="btn-secondary" id="btnRetakeQuiz">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          <span>Retake Quiz</span>
+        </button>
+        <button type="button" class="btn-secondary" id="btnReconfigQuiz">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+          <span>Change Question Count</span>
+        </button>
+        <a href="/study" class="btn-primary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          <span>Return to Study Notes</span>
+        </a>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="js/shared.js"></script>
+  <script src="js/quiz.js"></script>
+</body>
+</html>
